@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.egg-info/
+tests/_sandbox/
+tests/_install_runs/
+tests/_hook_runs/
+tests/_install_demo/
+tests/*_results.json
+dist/
+.science/

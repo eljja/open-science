@@ -1,0 +1,30 @@
+{
+ "files": [
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig02_github_비교.png",
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig02_github_비교.svg"
+ ],
+ "caption": "공개 Claude Science 대안 16종 비교",
+ "created": "2026-11-12T03:32:41",
+ "sha256": {
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig02_github_비교.png": "4998917202525e5b",
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig02_github_비교.svg": "55ed39c6ff67e819"
+ },
+ "overlaps": [],
+ "source": null,
+ "review_status": "pending",
+ "data_csv": "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig02_github_비교_data.csv",
+ "panel_crops": {
+  "a": [
+   14,
+   64,
+   673,
+   1296
+  ],
+  "b": [
+   528,
+   14,
+   1823,
+   1411
+  ]
+ }
+}

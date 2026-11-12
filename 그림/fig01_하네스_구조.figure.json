@@ -1,0 +1,23 @@
+{
+ "files": [
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig01_하네스_구조.png",
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig01_하네스_구조.svg"
+ ],
+ "caption": "OpenCode 중심 하네스 5계층 구조",
+ "created": "2026-11-12T04:07:46",
+ "sha256": {
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig01_하네스_구조.png": "5f6a9937d19cdbfd",
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig01_하네스_구조.svg": "286c5622d5bb6a9a"
+ },
+ "overlaps": [],
+ "source": null,
+ "review_status": "pending",
+ "panel_crops": {
+  "a": [
+   15,
+   14,
+   1763,
+   1073
+  ]
+ }
+}

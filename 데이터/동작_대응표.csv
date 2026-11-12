@@ -1,0 +1,11 @@
+﻿Claude Science 동작,OpenCode 구현,상태
+결과 충실성,시스템 프롬프트 3절 + artifact_lineage,작성·테스트
+지속 커널,science-kernel.python_exec,테스트
+render-then-verify,view_image + 미검토 목록 + context 훅,테스트(훅 로직)
+산출물 버전·계보,artifact_save/lineage,테스트
+[Memory] 회상,memory MCP + prompt 훅,테스트(훅 로직)
+[skill_discovery],BM25 + prompt 훅,테스트
+실존 인용,scholar.doi_resolve/verify_citations,오프라인 오류 처리만
+계획·승인,"plan-and-delegate, /plan",작성
+위임·deviations,서브에이전트 5종,작성
+압축 연속성,frame.md + compaction 훅,작성

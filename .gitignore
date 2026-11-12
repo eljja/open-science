@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+env/
+
+# Test artifacts & caches
+tests/_sandbox/
+tests/_install_runs/
+tests/_hook_runs/
+tests/_install_demo/
+tests/*_results.json
+.science/
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.claude/

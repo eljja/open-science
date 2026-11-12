@@ -1,0 +1,23 @@
+{
+ "files": [
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig03_턴루프_논문게이트.png",
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig03_턴루프_논문게이트.svg"
+ ],
+ "caption": "작업 루프와 논문 게이트",
+ "created": "2026-11-12T20:20:00",
+ "sha256": {
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig03_턴루프_논문게이트.png": "957ddfa846ef7868",
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig03_턴루프_논문게이트.svg": "b3d99069f60860a2"
+ },
+ "overlaps": [],
+ "source": null,
+ "review_status": "pending",
+ "panel_crops": {
+  "a": [
+   15,
+   14,
+   1763,
+   840
+  ]
+ }
+}

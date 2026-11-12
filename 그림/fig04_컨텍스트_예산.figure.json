@@ -1,0 +1,24 @@
+{
+ "files": [
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig04_컨텍스트_예산.png",
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig04_컨텍스트_예산.svg"
+ ],
+ "caption": "컨텍스트 예산",
+ "created": "2026-11-12T20:20:44",
+ "sha256": {
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig04_컨텍스트_예산.png": "3b109b6cd1256040",
+  "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig04_컨텍스트_예산.svg": "91368159ff6ea9cc"
+ },
+ "overlaps": [],
+ "source": null,
+ "review_status": "pending",
+ "data_csv": "E:\\Downloads\\ClaudeScience\\Harness\\그림\\fig04_컨텍스트_예산_data.csv",
+ "panel_crops": {
+  "a": [
+   15,
+   14,
+   1426,
+   1008
+  ]
+ }
+}

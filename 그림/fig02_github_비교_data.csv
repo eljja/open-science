@@ -1,0 +1,17 @@
+﻿repo,category,files,stars,kernel,lineage,figure,writing,citation,review,memory,windows,portable
+aipoch/open-science,GUI/웹 워크벤치,11417,5510,0,2,1,2,1,2,0,2,2
+synthetic-sciences/openscience,GUI/웹 워크벤치,7247,4366,2,1,1,1,1,2,0,2,0
+ai4s-research/open-science,GUI/웹 워크벤치,1119,2087,2,2,2,2,1,2,2,2,2
+delibae/claude-prism,GUI/웹 워크벤치,254,1848,0,2,1,2,0,1,0,2,0
+xuzhougeng/wisp-science,GUI/웹 워크벤치,3608,1069,2,2,1,2,1,2,2,2,2
+PKU-YuanGroup/OpenAI4S,GUI/웹 워크벤치,6379,662,2,2,2,1,1,2,2,1,2
+runcell-ai/runcell-science,GUI/웹 워크벤치,886,25,2,1,1,0,0,1,0,0,2
+K-Dense-AI/scientific-agent-skills,스킬 라이브러리,3497,56730,0,1,2,2,1,1,0,1,2
+Imbad0202/academic-research-skills,스킬 라이브러리,3326,56356,0,2,2,2,2,2,0,1,1
+google-deepmind/science-skills,스킬 라이브러리,362,3445,0,0,0,0,0,0,0,0,1
+K-Dense-AI/claude-scientific-writer,스킬 라이브러리,2229,2567,0,1,2,2,1,2,0,0,0
+Boom5426/Nature-Paper-Skills,스킬 라이브러리,420,667,0,1,2,2,2,2,0,1,2
+ai4s-research/ai4s-skills,스킬 라이브러리,137,268,0,2,2,2,1,1,0,0,2
+openags/paper-search-mcp,MCP 서버,146,3048,0,1,0,0,0,0,0,0,2
+datalayer/jupyter-mcp-server,MCP 서버,502,1323,2,0,1,0,0,0,0,1,2
+K-Dense-AI/claude-skills-mcp,MCP 서버,76,411,0,0,0,0,0,0,0,0,2
