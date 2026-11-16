@@ -1,4 +1,9 @@
-﻿테스트,통과,전체,비고
-"smoke_test (MCP, --inproc --offline)",14,14,scholar 네트워크 4건 미실행
-"test_install (5개 대상, OpenCode 1.x 포함)",45,45,
-test_hooks (공용 훅),8,8,
+﻿테스트,통과,전체,비고,구분
+"smoke_test (MCP, --inproc --offline)",14,14,scholar 네트워크 4건 미실행,자동
+test_install (5개 대상 + 오프라인 14건),59,59,,자동
+"test_hooks (공용 훅, --root 회귀 포함)",9,9,,자동
+test_opencode_real — OpenCode 1.19.5 실기,10,10,"네트워크 차단, 번들 V1 의존성",실기
+test_e2e_mock_llm — OpenCode 1.19.5,9,9,"모의 LLM, 네트워크 차단, 격리 홈, 최종 번들",실기
+test_e2e_mock_llm — OpenCode 2.3.0,9,9,"모의 LLM, 네트워크 차단, 격리 홈, 최종 번들",실기
+오프라인 번들 체크섬,170,170,SHA256SUMS.txt,번들
+오프라인 wheel 의존성 해석,71,71,pip --no-index --dry-run,번들

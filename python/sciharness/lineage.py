@@ -12,7 +12,7 @@ def state_dir(root: Path | None = None) -> Path:
     return d
 
 def now() -> str:
-    return _dt.datetime.now().isoformat(timespec="seconds")
+    return _dt.datetime.now().astimezone().isoformat(timespec="seconds")  # 시간대 포함(플러그인 UTC 기록과 비교 가능)
 
 def sha256(path: str | Path, n: int = 16) -> str:
     h = hashlib.sha256()

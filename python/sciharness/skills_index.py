@@ -14,17 +14,19 @@ def _front(text: str) -> dict:
                 k, v = line.split(":", 1); out[k.strip()] = v.strip().strip('"').strip("'")
     return out
 
-def default_dirs() -> list[Path]:
+def default_dirs(base: Path | None = None) -> list[Path]:
+    """스킬 폴더 후보. base(프로젝트 루트) 기준 — 훅이 다른 작업 폴더에서 호출돼도 같은 결과.
+    base 가 없으면 SCIHARNESS_ROOT, 그다음 현재 작업 폴더."""
     env = os.environ.get("SCIHARNESS_SKILL_DIRS")
     if env:
         return [Path(p) for p in env.split(os.pathsep)]
-    cwd = Path.cwd(); home = Path.home()
+    cwd = Path(base or os.environ.get("SCIHARNESS_ROOT") or Path.cwd()); home = Path.home()
     return [cwd / ".claude/skills", cwd / ".agents/skills", cwd / ".opencode/skills", cwd / "skills",
             home / ".claude/skills", home / ".agents/skills", home / ".config/opencode/skills"]
 
-def load(dirs=None) -> list[dict]:
+def load(dirs=None, base: Path | None = None) -> list[dict]:
     seen, out = set(), []
-    for d in dirs or default_dirs():
+    for d in dirs or default_dirs(base):
         if not Path(d).exists():
             continue
         for p in Path(d).rglob("SKILL.md"):
@@ -44,8 +46,8 @@ def _tok(s: str) -> list[str]:
         grams += [w[i:i + 2] for i in range(len(w) - 1)]
     return words + grams
 
-def search(query: str, k: int = 4, dirs=None, min_score: float = 0.8) -> list[dict]:
-    docs = load(dirs)
+def search(query: str, k: int = 4, dirs=None, min_score: float = 0.8, base: Path | None = None) -> list[dict]:
+    docs = load(dirs, base)
     if not docs:
         return []
     toks = [_tok(d["name"].replace("-", " ") + " " + d["description"]) for d in docs]

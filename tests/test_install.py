@@ -23,7 +23,7 @@ install.main(["--target", "opencode", "--project", str(proj)])
 cfg = json.loads(re.sub(r"^//.*$", "", (proj / "opencode.jsonc").read_text(encoding="utf-8"), flags=re.M))
 chk("opencode.jsonc: V2 mcp.servers 3종 + default_agent=science",
     set(cfg["mcp"]["servers"]) == {"science-kernel", "scholar", "memory"} and cfg["default_agent"] == "science")
-chk("science-kernel codemode=false (이미지 직접 전달)", cfg["mcp"]["servers"]["science-kernel"].get("codemode") is False)
+chk("V2 MCP 3종 codemode=false (직접 호출·이미지 직접 전달)", all(cfg["mcp"]["servers"][n].get("codemode") is False for n in ("science-kernel", "scholar", "memory")))
 for f in sorted((proj / ".opencode/agents").glob("*.md")):
     m = fm(f)
     chk(f"OpenCode 에이전트 {f.stem}: V2 frontmatter", m["mode"] in ("primary", "subagent") and isinstance(m["permissions"], list)
@@ -86,6 +86,55 @@ chk("V1 플러그인 단일 파일 + V1 훅 4종", all(h in pv1 for h in ['"chat
 chk("V1 스킬 10 · 명령 8", len(list((p1 / ".opencode/skills").glob("*/SKILL.md"))) == 10 and len(list((p1 / ".opencode/commands").glob("*.md"))) == 8)
 plan_x = install.Plan(proj, dry=True, force=False); install.install_opencode_v1(plan_x, sys.executable)
 chk("V2 설치 폴더에는 V1 설치 건너뜀", any(a == "note" and "OpenCode 2" in r for a, r in plan_x.log) and not any(a == "create" for a, _ in plan_x.log))
+
+# 6) 오프라인 모드(--offline): scholar 비활성 · 자동 업데이트 끔 · 오프라인 규칙 · env 스크립트 · 재설치 멱등
+import hashlib, subprocess
+def _digest(root):
+    return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.rglob("*"))
+            if p.is_file() and ".science" not in p.parts and "outputs" not in p.parts}
+po2, po1 = proj.parent / (proj.name + "_off2"), proj.parent / (proj.name + "_off1")
+for d in (po2, po1):
+    d.mkdir()
+install.main(["--target", "opencode", "--project", str(po2), "--offline"])
+install.main(["--target", "opencode-v1", "--project", str(po1), "--offline"])
+c2o = json.loads(re.sub(r"^//.*$", "", (po2 / "opencode.jsonc").read_text(encoding="utf-8"), flags=re.M))
+c1o = json.loads((po1 / "opencode.json").read_text(encoding="utf-8"))
+chk("오프라인 V2: scholar disabled=true, kernel/memory 활성", c2o["mcp"]["servers"]["scholar"].get("disabled") is True
+    and not c2o["mcp"]["servers"]["science-kernel"].get("disabled") and not c2o["mcp"]["servers"]["memory"].get("disabled"))
+chk("오프라인 V1: scholar enabled=false + autoupdate=false", c1o["mcp"]["scholar"].get("enabled") is False and c1o.get("autoupdate") is False)
+for nm, d in (("V2", po2), ("V1", po1)):
+    ag = (d / "AGENTS.md").read_text(encoding="utf-8")
+    chk(f"오프라인 {nm}: AGENTS.md 오프라인 규칙 1회", ag.count("## 오프라인 환경") == 1 and "미검증" in ag)
+    env_ps = (d / ".opencode/sciharness.env.ps1").read_text(encoding="utf-8-sig")
+    chk(f"오프라인 {nm}: env 스크립트 OPENCODE_* 3종 + MODELS_PATH 조건부", all(k in env_ps for k in
+        ["OPENCODE_DISABLE_AUTOUPDATE", "OPENCODE_DISABLE_MODELS_FETCH", "OPENCODE_DISABLE_LSP_DOWNLOAD", "OPENCODE_MODELS_PATH"]))
+before = _digest(po1)
+install.main(["--target", "opencode-v1", "--project", str(po1), "--offline"])
+chk("오프라인 재설치 멱등(파일 변화 없음)", _digest(po1) == before)
+chk("온라인 설치에는 오프라인 규칙 없음", "## 오프라인 환경" not in (proj / "AGENTS.md").read_text(encoding="utf-8")
+    and not json.loads(re.sub(r"^//.*$", "", (proj / "opencode.jsonc").read_text(encoding="utf-8"), flags=re.M))["mcp"]["servers"]["scholar"].get("disabled"))
+install.OFFLINE = False
+
+# 7) 오프라인 번들 도구: build_bundle 구문 · 설치 스크립트 구문/인코딩 · V1 의존성 배치 로직
+import ast
+off = HERE.parent / "tools" / "offline"
+bsrc = (off / "build_bundle.py").read_text(encoding="utf-8"); ast.parse(bsrc)
+chk("build_bundle: npm 무결성 검증 + pip wheel + V1 의존성 준비", all(k in bsrc for k in ["integrity", '"download"', "prime_v1_deps", "--no-v1-deps", '"pip")']))
+raw = (off / "install_offline.ps1").read_bytes()
+chk("install_offline.ps1: UTF-8 BOM + CRLF (PowerShell 5.1 한글)", raw[:3] == b"\xef\xbb\xbf" and b"\r\n" in raw and b"\n" not in raw.replace(b"\r\n", b""))
+pst = raw.decode("utf-8-sig")
+chk("install_offline.ps1: Invoke-Native + pip 부트스트랩 + V1 의존성(기존 package.json 보존)",
+    "function Invoke-Native" in pst and "pip-*.whl" in pst and "opencode-plugin-deps.zip" in pst and "덮어쓰지 않음" in pst)
+chk("install_offline.ps1: models.json 을 install.py 전에 복사(OPENCODE_MODELS_PATH 반영)",
+    pst.index("models.json") < pst.index("install.py"))
+if shutil.which("powershell"):
+    r = subprocess.run(["powershell", "-NoProfile", "-Command",
+        f"$e=$null; [void][System.Management.Automation.Language.Parser]::ParseFile('{off / 'install_offline.ps1'}', [ref]$null, [ref]$e); $e.Count"],
+        capture_output=True, text=True)
+    chk("install_offline.ps1: PowerShell 파서 오류 0", r.stdout.strip().splitlines()[-1:] == ["0"], r.stdout.strip()[-20:])
+shs = (off / "install_offline.sh").read_text(encoding="utf-8")
+chk("install_offline.sh: pip 부트스트랩 + V1 의존성 + models 선복사", "pip-*.whl" in shs and "opencode-plugin-deps.zip" in shs
+    and shs.index("models.json") < shs.index("install.py"))
 
 n = sum(ok for _, ok in res); print(f"\n{n}/{len(res)} passed")
 (HERE / "install_results.json").write_text(json.dumps([{"test": a, "ok": b} for a, b in res], ensure_ascii=False, indent=1), encoding="utf-8")

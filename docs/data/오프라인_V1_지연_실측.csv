@@ -1,0 +1,7 @@
+﻿조건,명령,소요_초,비고
+의존성 없음,debug config,71.6,경고 2건
+의존성 없음,mcp list,73.8,
+의존성 없음,agent list,71.3,
+번들 의존성 배치,debug config,1.4,"경고 0건, package-lock 변화 없음"
+번들 의존성 배치,mcp list,3.7,kernel·memory connected
+번들 의존성 배치,agent list,1.1,

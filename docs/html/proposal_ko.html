@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>OpenCode를 Claude Science급으로 동작시키는 하네스 설계와 구현 (open-science v0.1)</title></head><body style="max-width:980px;margin:24px auto;padding:0 18px;font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif"><h1 id="opencode-claude-science-open-science-v01" style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:24px;color:#0B2545;border-bottom:2px solid #0B2545;padding-bottom:4px;margin:28px 0 12px">OpenCode를 Claude Science급으로 동작시키는 하네스 설계와 구현 (open-science v0.1)</h1>
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>OpenCode를 Claude Science급으로 동작시키는 하네스 설계와 구현 (open-science v0.2)</title></head><body style="max-width:980px;margin:24px auto;padding:0 18px;font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif"><h1 id="opencode-claude-science-open-science-v02" style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:24px;color:#0B2545;border-bottom:2px solid #0B2545;padding-bottom:4px;margin:28px 0 12px">OpenCode를 Claude Science급으로 동작시키는 하네스 설계와 구현 (open-science v0.2)</h1>
 <table style="border-collapse:collapse;margin:10px 0 16px;font-size:13px;width:auto">
 <thead>
 <tr>
@@ -9,7 +9,7 @@
 <tbody>
 <tr>
 <td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">작성</td>
-<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">2026-11-12 · v0.1</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">2026-11-12 · v0.1 / 2026-11-17 · v0.2 (OpenCode 1.x, 오프라인 설치, 실기 검증)</td>
 </tr>
 <tr>
 <td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">목적</td>
@@ -21,7 +21,7 @@
 </tr>
 <tr>
 <td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">결론</td>
-<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">GUI 앱을 새로 만들지 말고 <strong>지시문·스킬·MCP·플러그인 훅을 주입하는 팩</strong>으로 간다. OpenCode 2의 primary 에이전트 시스템 프롬프트 교체 + 플러그인 훅 + Python MCP 서버 3종으로 핵심 동작을 구현했고, 오프라인 범위 테스트 67/67을 통과했다. OpenCode 실기 실행은 아직 검증하지 못했다</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">GUI 앱을 새로 만들지 말고 <strong>지시문·스킬·MCP·플러그인 훅을 주입하는 팩</strong>으로 간다. OpenCode 2의 primary 에이전트 시스템 프롬프트 교체 + 플러그인 훅 + Python MCP 서버 3종으로 핵심 동작을 구현했다. 자동 테스트 82/82를 통과했고, <strong>실제 OpenCode 2.3.0·1.19.5 바이너리</strong>에서 모의 LLM으로 한 턴을 돌려 프롬프트 대체·훅 주입·MCP 도구 왕복·계보 기록을 확인했다(각 9/9). 인터넷·npm 없는 PC용 오프라인 번들(293 MB ZIP)을 제공한다</td>
 </tr>
 </tbody>
 </table>
@@ -30,7 +30,8 @@
 <li style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.65;color:#222"><strong>동작의 원천은 GUI가 아니라 규율이다.</strong> Claude Science 의 차별점은 (1) 결과 충실성 규칙, (2) 지속 커널과 산출물 계보, (3) 그림을 저장한 뒤 눈으로 확인하는 render-then-verify, (4) 실존이 확인된 인용만 쓰는 문헌 규칙, (5) 메모리 회상·스킬 탐색 블록의 자동 주입, (6) 독립 트랙 위임과 deviations 감사다. 이 여섯 가지는 텍스트 지시 + 도구 + 훅으로 옮길 수 있다.</li>
 <li style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.65;color:#222"><strong>공개 대안 16종 비교</strong>(그림 2): GUI 워크벤치 7종의 파일 수 중앙값은 3.6k로 스킬 팩(1.3k)의 약 3배다. 별 수 1·2위는 스킬 팩(56.7k, 56.4k)이고 GUI 최고는 5.5k다. 런타임과 무관하게 행동을 <strong>강제</strong>하는 장치(미검토 그림 차단, 회상 주입, 압축 보존 규칙)를 체계적으로 갖춘 저장소는 없었다.</li>
 <li style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.65;color:#222"><strong>OpenCode 2 구현</strong>(그림 1): <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">.opencode/agents/science.md</code>의 본문이 제공자 기본 프롬프트를 대체한다. 플러그인의 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">prompt</code>/<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">context</code>/<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">compaction</code>/<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">tool.execute.after</code> 훅이 Claude Science의 주입 블록을 재현한다. MCP 서버 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">science-kernel</code>·<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">scholar</code>·<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">memory</code>가 계산·문헌·기억을 맡는다.</li>
-<li style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.65;color:#222"><strong>검증</strong>: MCP 서버 스모크 14/14(오프라인 범위, scholar 네트워크 4건은 이번 실행에서 미실행), 설치기 45/45, 훅 8/8. OpenCode 실기 실행, 플러그인 TypeScript 실행, Codex·Claude Code 실기 실행은 <strong>미검증</strong>(7절).</li>
+<li style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.65;color:#222"><strong>검증</strong>(7절): 자동 테스트 82/82(MCP 스모크 14, 설치기 59, 훅 9). 실제 OpenCode 1.19.5 설정 로딩 10/10. 모의 LLM 종단 간 테스트 V1 9/9, V2 9/9(네트워크 차단·격리 홈). 실제 LLM으로 장시간 작업, 그림 검토 게이트·압축 훅의 실기 동작, Codex·Claude Code 실기 실행은 <strong>미검증</strong>.</li>
+<li style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.65;color:#222"><strong>오프라인 설치</strong>(6.2절): OpenCode 바이너리를 npm 레지스트리에서 직접 받아(sha512 검증) Python wheel 72개, V1 플러그인 의존성, 모델 카탈로그와 함께 묶는다. OpenCode 1.x는 폐쇄망에서 시작할 때마다 npm 설치를 시도해 명령당 약 72초가 지연되는데, 번들 의존성을 미리 배치하면 1–4초로 줄어든다(실측).</li>
 </ul>
 <h2 id="1-claude-science" style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:19px;color:#13315C;border-bottom:1px solid #C9D3E0;padding-bottom:3px;margin:24px 0 10px">1. Claude Science 동작의 분해와 이식 방법</h2>
 <table style="border-collapse:collapse;margin:10px 0 16px;font-size:13px;width:auto">
@@ -733,6 +734,68 @@
 </table>
 <p style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.7;color:#222;margin:6px 0 10px">스킬·명령·서브에이전트 본문·MCP 서버·공용 Python 훅은 두 버전이 같다. V2 가 설치된 폴더에 V1 을 설치하면 설치기가 건너뛴다(테스트됨).</p>
 <p style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.7;color:#222;margin:6px 0 10px">OpenCode 와 Codex 를 한 폴더에 함께 설치하면 핵심 규율이 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">AGENTS.md</code>에 들어가므로, 설치기가 science 에이전트 본문을 "AGENTS.md를 따르라"는 안내문으로 바꿔 중복을 막는다(테스트됨).</p>
+<h3 id="62-npm-pc" style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:16px;color:#13315C;margin:18px 0 8px">6.2 오프라인 설치 (인터넷·npm 없는 PC)</h3>
+<p style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.7;color:#222;margin:6px 0 10px">인터넷 PC에서 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">tools/offline/build_bundle.py</code>로 번들을 만들고, 대상 PC에서 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">install_offline.ps1</code>(또는 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">.sh</code>)를 실행한다. 관리자 권한은 필요 없다. 자세한 절차는 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">tools/offline/OFFLINE_README.md</code>에 있다.</p>
+<table style="border-collapse:collapse;margin:10px 0 16px;font-size:13px;width:auto">
+<thead>
+<tr>
+<th style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #B8C4D6;background:#E8EEF6;padding:5px 8px;text-align:left;vertical-align:top">구성</th>
+<th style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #B8C4D6;background:#E8EEF6;padding:5px 8px;text-align:left;vertical-align:top">내용 (2026-11-17 Windows x64 / Python 3.11 빌드 실측)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">OpenCode 바이너리</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top"><code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">@opencode/cli-windows-x64</code> 2.3.0, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">opencode-windows-x64</code> 1.19.5. npm 레지스트리 tarball을 직접 받아 sha512 무결성 검증(npm 명령 불필요)</td>
+</tr>
+<tr>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">Python</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">sciharness + 의존성 71개 + pip = wheel 72개. <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">pip --no-index --dry-run</code> 으로 전부 해석됨을 확인</td>
+</tr>
+<tr>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">V1 플러그인 의존성</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top"><code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">@opencode-ai/plugin</code> 1.19.5 node_modules(파일 3,668개)를 OpenCode 1.x 자신이 설치하게 한 뒤 ZIP(12.4 MB)으로 보관</td>
+</tr>
+<tr>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">모델 카탈로그</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">models.dev 스냅샷(V1 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">OPENCODE_MODELS_PATH</code>)</td>
+</tr>
+<tr>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">합계</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">170개 파일, 567 MB, ZIP 293 MB, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">SHA256SUMS.txt</code>·<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">manifest.json</code></td>
+</tr>
+</tbody>
+</table>
+<p style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.7;color:#222;margin:6px 0 10px"><code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">install.py --offline</code>은 scholar MCP를 끄고(V2 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">disabled</code>, V1 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">enabled:false</code>), V1 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">autoupdate:false</code>를 쓰고, AGENTS.md에 "인용은 제공된 문헌만 쓰고 검증하지 못하면 미검증으로 표시, 패키지 설치 시도 금지" 규칙을 추가하며, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">OPENCODE_DISABLE_AUTOUPDATE</code>·<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">OPENCODE_DISABLE_MODELS_FETCH</code>·<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">OPENCODE_DISABLE_LSP_DOWNLOAD</code>(+카탈로그가 있으면 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">OPENCODE_MODELS_PATH</code>)를 env 스크립트에 넣는다.</p>
+<p style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.7;color:#222;margin:6px 0 10px"><strong>OpenCode 1.x의 npm 설치.</strong> v1.19.5 소스(<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">config/config.ts</code>)를 보면 시작할 때 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">.opencode/</code>와 전역 설정 폴더에 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">@opencode-ai/plugin</code>을 백그라운드로 설치한다. <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">node_modules</code>가 있고 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">package.json</code>의 의존성이 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">package-lock.json</code>에 모두 있으면 건너뛴다. 네트워크를 차단하고 측정한 결과는 다음과 같다.</p>
+<table style="border-collapse:collapse;margin:10px 0 16px;font-size:13px;width:auto">
+<thead>
+<tr>
+<th style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #B8C4D6;background:#E8EEF6;padding:5px 8px;text-align:left;vertical-align:top">조건 (OpenCode 1.19.5, 프록시를 닫힌 포트로)</th>
+<th style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #B8C4D6;background:#E8EEF6;padding:5px 8px;text-align:left;vertical-align:top">debug config</th>
+<th style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #B8C4D6;background:#E8EEF6;padding:5px 8px;text-align:left;vertical-align:top">mcp list</th>
+<th style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #B8C4D6;background:#E8EEF6;padding:5px 8px;text-align:left;vertical-align:top">agent list</th>
+<th style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #B8C4D6;background:#E8EEF6;padding:5px 8px;text-align:left;vertical-align:top">의존성 경고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">의존성 없음</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">71.6 s</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">73.8 s</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">71.3 s</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">2건</td>
+</tr>
+<tr>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">번들 의존성 배치</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">1.4 s</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">3.7 s</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">1.1 s</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">0건</td>
+</tr>
+</tbody>
+</table>
+<p style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.7;color:#222;margin:6px 0 10px">OpenCode 2는 프로젝트에 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">node_modules</code>를 만들지 않았다. 두 버전 모두 OpenAI 호환 provider 패키지가 바이너리에 들어 있어, 네트워크를 차단한 상태에서도 사내 OpenAI 호환 엔드포인트(모의 서버로 확인)에 연결된다.</p>
 <h2 id="7" style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:19px;color:#13315C;border-bottom:1px solid #C9D3E0;padding-bottom:3px;margin:24px 0 10px">7. 검증 결과와 미검증 항목</h2>
 <table style="border-collapse:collapse;margin:10px 0 16px;font-size:13px;width:auto">
 <thead>
@@ -750,34 +813,54 @@
 </tr>
 <tr>
 <td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top"><code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">tests/test_install.py</code></td>
-<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">45/45</td>
-<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">5개 대상(OpenCode 2·1.x, Claude Code, Codex, Claude.ai) 생성 파일 JSON/TOML/YAML 파싱, 권한, 멱등 재설치, 사용자 수정 보호, 공존 중복 제거, V1/V2 충돌 방지</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">59/59</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">5개 대상(OpenCode 2·1.x, Claude Code, Codex, Claude.ai) 생성 파일 파싱, 권한, 멱등 재설치, 사용자 수정 보호, 공존 중복 제거, V1/V2 충돌 방지, 오프라인 모드 14건(scholar 비활성, 자동 업데이트 끔, 오프라인 규칙, env 변수, 번들 도구·설치 스크립트 구문)</td>
 </tr>
 <tr>
 <td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top"><code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">tests/test_hooks.py</code></td>
-<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">8/8</td>
-<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">회상·탐색 주입, 미검토 그림 Stop 차단 → view_image 후 해제, 무한루프 방지, SessionStart, 계보</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">9/9</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">회상·탐색 주입, 미검토 그림 Stop 차단 → view_image 후 해제, 무한루프 방지, SessionStart, 계보, 다른 작업 폴더에서 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">--root</code> 기준 스킬 탐색(회귀)</td>
+</tr>
+<tr>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top"><code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">tests/test_opencode_real.py</code> (OpenCode 1.19.5, 네트워크 차단)</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">10/10</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top"><code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">debug config</code>: default_agent=science, 에이전트 6, 명령 8, V1 플러그인, MCP 3 / <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">debug agent science</code>: 하네스 프롬프트 / <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">debug skill</code>: 스킬 10 / <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">mcp list</code>: kernel·memory connected, scholar disabled</td>
+</tr>
+<tr>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">OpenCode 2.3.0 서버 API (<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">opencode serve</code>)</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">확인</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top"><code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">/api/agent</code>: science(primary, 하네스 프롬프트 6,153자)+서브에이전트 5, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">/api/skill</code>: 스킬 10, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">/api/mcp</code>: kernel·memory connected·scholar disabled, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">/api/plugin</code>: <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">science-harness</code>(local) active, reviewer <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">edit deny</code></td>
+</tr>
+<tr>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top"><code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">tests/test_e2e_mock_llm.py</code> V1 / V2</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">9/9 · 9/9</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">실제 바이너리 + 모의 OpenAI 호환 모델 한 턴: 기본 프롬프트 대체, 플러그인 훅의 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">[skill_discovery]</code> 주입, AGENTS.md 포함, MCP 도구 직접 노출, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">python_exec</code> 결과(42) 왕복, 커널 셀·플러그인 도구 계보 기록</td>
 </tr>
 </tbody>
 </table>
-<p style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.7;color:#222;margin:6px 0 10px"><strong>미검증(다음 단계에서 반드시 확인).</strong>
-1. OpenCode 2·1.x 실기 실행: 이 샌드박스에 Node 가 없고 네트워크도 끊겨 설치하지 못했다. 에이전트·MCP·명령 파일은 공식 문서 스키마에 맞췄지만 실제 로딩은 확인하지 못했다.
-2. 플러그인 실행: V2 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">index.ts</code> 는 훅 이름·등록 방식이 문서 그대로지만 이벤트 필드명(<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">sessionID</code>, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">system</code>, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">prompt.text</code>)은 실제 값으로 확인하지 못했다. V1 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">science-harness.ts</code> 는 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">@opencode-ai/plugin</code> 1.19.5 타입 정의와 시그니처를 맞췄지만 실행하지 않았다.
-3. scholar 네트워크 4건(실제 DOI 확인, 가짜 DOI 거부, Crossref 검색, OpenAlex 키 없음 처리): 이번 실행 중 샌드박스 외부 네트워크가 끊겨 실행하지 않았다.
-4. stdio 전송: 이 샌드박스가 Windows 네임드 파이프 생성을 막아 메모리 내 전송으로 테스트했다. 사용자 PC 에서는 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">python tests/smoke_test.py</code>(stdio)로 확인해야 한다.
+<p style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.7;color:#222;margin:6px 0 10px"><strong>실기 검증에서 발견해 고친 것.</strong>
+1. 스킬 탐색이 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">--root</code>가 아니라 현재 작업 폴더 기준으로 스킬 폴더를 찾았다. 훅이 다른 폴더에서 호출되면 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">[skill_discovery]</code>가 조용히 비었다. 프로젝트 루트(<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">--root</code>, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">SCIHARNESS_ROOT</code>) 기준으로 고치고 회귀 테스트를 추가했다.
+2. OpenCode 2.3.0은 MCP 서버의 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">codemode</code> 기본값에서 도구를 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">execute</code>(JavaScript) 안의 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">tools.memory.*</code>로만 노출했다. 프롬프트 설명·V1 동작과 맞추려고 하네스 MCP 3종 모두 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">codemode:false</code>로 설치한다.
+3. 계보 기록 시각에 시간대를 붙였다(Python 기록은 로컬 시각, 플러그인 기록은 UTC였다).
+4. 오프라인 설치 스크립트: PowerShell 5.1에서 네이티브 명령의 stderr가 예외로 바뀌는 문제(<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">Invoke-Native</code>로 종료 코드만 판정), ensurepip가 없는 Python(번들 pip wheel로 부트스트랩), 모델 카탈로그 복사 순서(env 스크립트에 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">OPENCODE_MODELS_PATH</code>가 빠짐).</p>
+<p style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.7;color:#222;margin:6px 0 10px"><strong>미검증(다음 단계).</strong>
+1. 실제 LLM으로 장시간 과제: 모의 모델은 도구 호출 형식만 확인한다. 모델이 규율(그림 검증, 인용 검증)을 끝까지 따르는지는 연결한 모델에 달렸다.
+2. 그림 검토 게이트(<code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">[figure_review_pending]</code>)와 압축 훅(compaction)의 실기 동작. 공용 Python 쪽은 테스트했다(test_hooks).
+3. scholar 실네트워크 4건(실제 DOI 확인, 가짜 DOI 거부, Crossref 검색, OpenAlex 키 없음 처리).
+4. 대상 PC에서 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">install_offline.ps1</code> 전 과정: 이 샌드박스는 중첩 프로세스가 만든 임시 파일에 접근하지 못해 pip 설치 단계를 완주하지 못했다. 체크섬 검증·Python 확인·pip 부트스트랩 시작까지와 각 단계(의존성 해석, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">install.py --offline</code>, V1 의존성 배치, 바이너리 실행)를 따로 확인했다.
 5. Codex, Claude Code, Claude.ai 실기 실행.
-6. 샌드박스 전용 설정: 커널 테스트에 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">JUPYTER_ALLOW_INSECURE_WRITES=1</code>을 사용했다(사용자 승인, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">--inproc</code> 모드에서만). 배포 기본값은 꺼져 있다.</p>
+6. 샌드박스 전용 설정: 커널 테스트에 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">JUPYTER_ALLOW_INSECURE_WRITES=1</code>(사용자 승인, 테스트에서만), OpenCode 2 서버 테스트에 D: 드라이브 PATH 항목 제외(샌드박스가 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">D:\Git\cmd\git.exe</code> 접근을 막아 서버가 500을 반환). 배포 기본값에는 들어가지 않는다.</p>
 <h2 id="8-windows-powershell" style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:19px;color:#13315C;border-bottom:1px solid #C9D3E0;padding-bottom:3px;margin:24px 0 10px">8. 설치와 사용 (Windows PowerShell)</h2>
 <pre style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F6F8FA;border:1px solid #E1E4E8;padding:10px;overflow-x:auto;line-height:1.45"><code class="language-powershell" style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">git clone https://github.com/eljja/open-science; cd open-science
 conda create -n sciharness python=3.11 -y; conda activate sciharness
 pip install -e python                       # mcp, jupyter_client, ipykernel, matplotlib, pandas, httpx, markdown
 python tools/install.py --doctor
-python tools/install.py --target opencode --project D:
-esearch\myproj
+python tools/install.py --target opencode --project D:\research\myproj
 npm install -g @opencode/cli                 # OpenCode 2
-cd D:
-esearch\myproj; . .\.opencode\sciharness.env.ps1; opencode
+cd D:\research\myproj; . .\.opencode\sciharness.env.ps1; opencode
 </code></pre>
+<p style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.7;color:#222;margin:6px 0 10px">오프라인 PC: 6.2절의 번들을 만든 뒤 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">powershell -ExecutionPolicy Bypass -File .\install_offline.ps1 -Project D:\research\myproj [-Target opencode-v1]</code>.</p>
+<p style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.7;color:#222;margin:6px 0 10px">설치 확인: <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">python tests/test_opencode_real.py --opencode &lt;opencode.exe&gt; --project D:\research\myproj</code>, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">python tests/test_e2e_mock_llm.py --opencode &lt;opencode.exe&gt;</code>(LLM 키 불필요).</p>
 <p style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:14px;line-height:1.7;color:#222;margin:6px 0 10px">첫 확인 순서: <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">/mcps</code>에서 서버 3종 connected → "y=sin(x) 그림을 그려 저장하고 검증해" → <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">outputs/figures/</code>, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">.science/lineage.jsonl</code>, <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">artifacts/manifest.jsonl</code> 생성 여부와 <code style="font-family:Consolas,'D2Coding',monospace;font-size:12.5px;background:#F3F5F8;padding:1px 4px;border-radius:3px">[figure_review_pending]</code> 경고가 view_image 후 사라지는지 확인.</p>
 <h2 id="9" style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:19px;color:#13315C;border-bottom:1px solid #C9D3E0;padding-bottom:3px;margin:24px 0 10px">9. 한계와 로드맵</h2>
 <table style="border-collapse:collapse;margin:10px 0 16px;font-size:13px;width:auto">
@@ -790,22 +873,27 @@ esearch\myproj; . .\.opencode\sciharness.env.ps1; opencode
 </thead>
 <tbody>
 <tr>
-<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">1 (현재)</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">1</td>
 <td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">팩 v0.1(+OpenCode 1.x 대상), 오프라인 테스트</td>
 <td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">67/67 ✓</td>
 </tr>
 <tr>
-<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">2</td>
-<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">OpenCode 2 실기: 에이전트·MCP·플러그인 훅 필드 확인, 패리티 과제 10개(그림·문헌·논문·위임) 수행</td>
-<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">과제별 체크리스트 통과</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">2 (현재)</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">v0.2: 오프라인 번들, OpenCode 2·1.x 실기 로딩·모의 LLM 종단 간 검증</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">82/82 + 실기 10/10, 9/9, 9/9 ✓</td>
 </tr>
 <tr>
 <td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">3</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">실제 LLM 패리티 과제 10개(그림·문헌·논문·위임), 그림 검토 게이트·압축 훅 실기</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">과제별 체크리스트 통과</td>
+</tr>
+<tr>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">4</td>
 <td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">외부 스킬 팩(K-Dense, DeepMind science-skills) 선택적 가져오기(출처·라이선스 명시), Codex/Claude Code 실기</td>
 <td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">동일 과제 런타임 간 비교</td>
 </tr>
 <tr>
-<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">4</td>
+<td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">5</td>
 <td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">산출물·계보 로컬 뷰어(HTML), 원격 scholar/memory 배포(Claude.ai 커넥터)</td>
 <td style="font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;border:1px solid #D0D7E2;padding:5px 8px;vertical-align:top">선택</td>
 </tr>

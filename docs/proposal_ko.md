@@ -1,17 +1,18 @@
-# OpenCode를 Claude Science급으로 동작시키는 하네스 설계와 구현 (open-science v0.1)
+# OpenCode를 Claude Science급으로 동작시키는 하네스 설계와 구현 (open-science v0.2)
 
 | 항목 | 내용 |
 |---|---|
-| 작성 | 2026-11-12 · v0.1 |
+| 작성 | 2026-11-12 · v0.1 / 2026-11-17 · v0.2 (OpenCode 1.x, 오프라인 설치, 실기 검증) |
 | 목적 | Claude.ai·Claude Code·Codex·OpenCode에서 Claude Science와 같은 동작(지속 커널 계산, 출판 품질 그림·개념도, 검증된 인용, 논문급 글)을 재현. **주 대상은 OpenCode 2** |
 | 산출물 | 하네스 키트 `science-harness/`(→ GitHub `eljja/open-science`), 본 보고서, 그림 5종, 비교 데이터, 데이터 뷰어 |
-| 결론 | GUI 앱을 새로 만들지 말고 **지시문·스킬·MCP·플러그인 훅을 주입하는 팩**으로 간다. OpenCode 2의 primary 에이전트 시스템 프롬프트 교체 + 플러그인 훅 + Python MCP 서버 3종으로 핵심 동작을 구현했고, 오프라인 범위 테스트 67/67을 통과했다. OpenCode 실기 실행은 아직 검증하지 못했다 |
+| 결론 | GUI 앱을 새로 만들지 말고 **지시문·스킬·MCP·플러그인 훅을 주입하는 팩**으로 간다. OpenCode 2의 primary 에이전트 시스템 프롬프트 교체 + 플러그인 훅 + Python MCP 서버 3종으로 핵심 동작을 구현했다. 자동 테스트 82/82를 통과했고, **실제 OpenCode 2.3.0·1.19.5 바이너리**에서 모의 LLM으로 한 턴을 돌려 프롬프트 대체·훅 주입·MCP 도구 왕복·계보 기록을 확인했다(각 9/9). 인터넷·npm 없는 PC용 오프라인 번들(293 MB ZIP)을 제공한다 |
 
 ## 요약
 - **동작의 원천은 GUI가 아니라 규율이다.** Claude Science 의 차별점은 (1) 결과 충실성 규칙, (2) 지속 커널과 산출물 계보, (3) 그림을 저장한 뒤 눈으로 확인하는 render-then-verify, (4) 실존이 확인된 인용만 쓰는 문헌 규칙, (5) 메모리 회상·스킬 탐색 블록의 자동 주입, (6) 독립 트랙 위임과 deviations 감사다. 이 여섯 가지는 텍스트 지시 + 도구 + 훅으로 옮길 수 있다.
 - **공개 대안 16종 비교**(그림 2): GUI 워크벤치 7종의 파일 수 중앙값은 3.6k로 스킬 팩(1.3k)의 약 3배다. 별 수 1·2위는 스킬 팩(56.7k, 56.4k)이고 GUI 최고는 5.5k다. 런타임과 무관하게 행동을 **강제**하는 장치(미검토 그림 차단, 회상 주입, 압축 보존 규칙)를 체계적으로 갖춘 저장소는 없었다.
 - **OpenCode 2 구현**(그림 1): `.opencode/agents/science.md`의 본문이 제공자 기본 프롬프트를 대체한다. 플러그인의 `prompt`/`context`/`compaction`/`tool.execute.after` 훅이 Claude Science의 주입 블록을 재현한다. MCP 서버 `science-kernel`·`scholar`·`memory`가 계산·문헌·기억을 맡는다.
-- **검증**: MCP 서버 스모크 14/14(오프라인 범위, scholar 네트워크 4건은 이번 실행에서 미실행), 설치기 45/45, 훅 8/8. OpenCode 실기 실행, 플러그인 TypeScript 실행, Codex·Claude Code 실기 실행은 **미검증**(7절).
+- **검증**(7절): 자동 테스트 82/82(MCP 스모크 14, 설치기 59, 훅 9). 실제 OpenCode 1.19.5 설정 로딩 10/10. 모의 LLM 종단 간 테스트 V1 9/9, V2 9/9(네트워크 차단·격리 홈). 실제 LLM으로 장시간 작업, 그림 검토 게이트·압축 훅의 실기 동작, Codex·Claude Code 실기 실행은 **미검증**.
+- **오프라인 설치**(6.2절): OpenCode 바이너리를 npm 레지스트리에서 직접 받아(sha512 검증) Python wheel 72개, V1 플러그인 의존성, 모델 카탈로그와 함께 묶는다. OpenCode 1.x는 폐쇄망에서 시작할 때마다 npm 설치를 시도해 명령당 약 72초가 지연되는데, 번들 의존성을 미리 배치하면 1–4초로 줄어든다(실측).
 
 ## 1. Claude Science 동작의 분해와 이식 방법
 
@@ -165,21 +166,52 @@ V1 공식 문서(`opencode.ai/v1/docs`), `@opencode-ai/plugin` 1.19.5 타입 정
 
 OpenCode 와 Codex 를 한 폴더에 함께 설치하면 핵심 규율이 `AGENTS.md`에 들어가므로, 설치기가 science 에이전트 본문을 "AGENTS.md를 따르라"는 안내문으로 바꿔 중복을 막는다(테스트됨).
 
+### 6.2 오프라인 설치 (인터넷·npm 없는 PC)
+인터넷 PC에서 `tools/offline/build_bundle.py`로 번들을 만들고, 대상 PC에서 `install_offline.ps1`(또는 `.sh`)를 실행한다. 관리자 권한은 필요 없다. 자세한 절차는 `tools/offline/OFFLINE_README.md`에 있다.
+
+| 구성 | 내용 (2026-11-17 Windows x64 / Python 3.11 빌드 실측) |
+|---|---|
+| OpenCode 바이너리 | `@opencode/cli-windows-x64` 2.3.0, `opencode-windows-x64` 1.19.5. npm 레지스트리 tarball을 직접 받아 sha512 무결성 검증(npm 명령 불필요) |
+| Python | sciharness + 의존성 71개 + pip = wheel 72개. `pip --no-index --dry-run` 으로 전부 해석됨을 확인 |
+| V1 플러그인 의존성 | `@opencode-ai/plugin` 1.19.5 node_modules(파일 3,668개)를 OpenCode 1.x 자신이 설치하게 한 뒤 ZIP(12.4 MB)으로 보관 |
+| 모델 카탈로그 | models.dev 스냅샷(V1 `OPENCODE_MODELS_PATH`) |
+| 합계 | 170개 파일, 567 MB, ZIP 293 MB, `SHA256SUMS.txt`·`manifest.json` |
+
+`install.py --offline`은 scholar MCP를 끄고(V2 `disabled`, V1 `enabled:false`), V1 `autoupdate:false`를 쓰고, AGENTS.md에 "인용은 제공된 문헌만 쓰고 검증하지 못하면 미검증으로 표시, 패키지 설치 시도 금지" 규칙을 추가하며, `OPENCODE_DISABLE_AUTOUPDATE`·`OPENCODE_DISABLE_MODELS_FETCH`·`OPENCODE_DISABLE_LSP_DOWNLOAD`(+카탈로그가 있으면 `OPENCODE_MODELS_PATH`)를 env 스크립트에 넣는다.
+
+**OpenCode 1.x의 npm 설치.** v1.19.5 소스(`config/config.ts`)를 보면 시작할 때 `.opencode/`와 전역 설정 폴더에 `@opencode-ai/plugin`을 백그라운드로 설치한다. `node_modules`가 있고 `package.json`의 의존성이 `package-lock.json`에 모두 있으면 건너뛴다. 네트워크를 차단하고 측정한 결과는 다음과 같다.
+
+| 조건 (OpenCode 1.19.5, 프록시를 닫힌 포트로) | debug config | mcp list | agent list | 의존성 경고 |
+|---|---|---|---|---|
+| 의존성 없음 | 71.6 s | 73.8 s | 71.3 s | 2건 |
+| 번들 의존성 배치 | 1.4 s | 3.7 s | 1.1 s | 0건 |
+
+OpenCode 2는 프로젝트에 `node_modules`를 만들지 않았다. 두 버전 모두 OpenAI 호환 provider 패키지가 바이너리에 들어 있어, 네트워크를 차단한 상태에서도 사내 OpenAI 호환 엔드포인트(모의 서버로 확인)에 연결된다.
+
 ## 7. 검증 결과와 미검증 항목
 
 | 테스트 | 결과 | 범위 |
 |---|---|---|
 | `tests/smoke_test.py --inproc --offline` | 14/14 | 커널 10(상태 유지, 그림 저장+미리보기, view_image, 버전 2회, 계보, 실패 정직 보고, traceback, 캡슐) + 메모리 4(한국어 검색, 민감정보 거부, 스킬 검색) |
-| `tests/test_install.py` | 45/45 | 5개 대상(OpenCode 2·1.x, Claude Code, Codex, Claude.ai) 생성 파일 JSON/TOML/YAML 파싱, 권한, 멱등 재설치, 사용자 수정 보호, 공존 중복 제거, V1/V2 충돌 방지 |
-| `tests/test_hooks.py` | 8/8 | 회상·탐색 주입, 미검토 그림 Stop 차단 → view_image 후 해제, 무한루프 방지, SessionStart, 계보 |
+| `tests/test_install.py` | 59/59 | 5개 대상(OpenCode 2·1.x, Claude Code, Codex, Claude.ai) 생성 파일 파싱, 권한, 멱등 재설치, 사용자 수정 보호, 공존 중복 제거, V1/V2 충돌 방지, 오프라인 모드 14건(scholar 비활성, 자동 업데이트 끔, 오프라인 규칙, env 변수, 번들 도구·설치 스크립트 구문) |
+| `tests/test_hooks.py` | 9/9 | 회상·탐색 주입, 미검토 그림 Stop 차단 → view_image 후 해제, 무한루프 방지, SessionStart, 계보, 다른 작업 폴더에서 `--root` 기준 스킬 탐색(회귀) |
+| `tests/test_opencode_real.py` (OpenCode 1.19.5, 네트워크 차단) | 10/10 | `debug config`: default_agent=science, 에이전트 6, 명령 8, V1 플러그인, MCP 3 / `debug agent science`: 하네스 프롬프트 / `debug skill`: 스킬 10 / `mcp list`: kernel·memory connected, scholar disabled |
+| OpenCode 2.3.0 서버 API (`opencode serve`) | 확인 | `/api/agent`: science(primary, 하네스 프롬프트 6,153자)+서브에이전트 5, `/api/skill`: 스킬 10, `/api/mcp`: kernel·memory connected·scholar disabled, `/api/plugin`: `science-harness`(local) active, reviewer `edit deny` |
+| `tests/test_e2e_mock_llm.py` V1 / V2 | 9/9 · 9/9 | 실제 바이너리 + 모의 OpenAI 호환 모델 한 턴: 기본 프롬프트 대체, 플러그인 훅의 `[skill_discovery]` 주입, AGENTS.md 포함, MCP 도구 직접 노출, `python_exec` 결과(42) 왕복, 커널 셀·플러그인 도구 계보 기록 |
 
-**미검증(다음 단계에서 반드시 확인).**
-1. OpenCode 2·1.x 실기 실행: 이 샌드박스에 Node 가 없고 네트워크도 끊겨 설치하지 못했다. 에이전트·MCP·명령 파일은 공식 문서 스키마에 맞췄지만 실제 로딩은 확인하지 못했다.
-2. 플러그인 실행: V2 `index.ts` 는 훅 이름·등록 방식이 문서 그대로지만 이벤트 필드명(`sessionID`, `system`, `prompt.text`)은 실제 값으로 확인하지 못했다. V1 `science-harness.ts` 는 `@opencode-ai/plugin` 1.19.5 타입 정의와 시그니처를 맞췄지만 실행하지 않았다.
-3. scholar 네트워크 4건(실제 DOI 확인, 가짜 DOI 거부, Crossref 검색, OpenAlex 키 없음 처리): 이번 실행 중 샌드박스 외부 네트워크가 끊겨 실행하지 않았다.
-4. stdio 전송: 이 샌드박스가 Windows 네임드 파이프 생성을 막아 메모리 내 전송으로 테스트했다. 사용자 PC 에서는 `python tests/smoke_test.py`(stdio)로 확인해야 한다.
+**실기 검증에서 발견해 고친 것.**
+1. 스킬 탐색이 `--root`가 아니라 현재 작업 폴더 기준으로 스킬 폴더를 찾았다. 훅이 다른 폴더에서 호출되면 `[skill_discovery]`가 조용히 비었다. 프로젝트 루트(`--root`, `SCIHARNESS_ROOT`) 기준으로 고치고 회귀 테스트를 추가했다.
+2. OpenCode 2.3.0은 MCP 서버의 `codemode` 기본값에서 도구를 `execute`(JavaScript) 안의 `tools.memory.*`로만 노출했다. 프롬프트 설명·V1 동작과 맞추려고 하네스 MCP 3종 모두 `codemode:false`로 설치한다.
+3. 계보 기록 시각에 시간대를 붙였다(Python 기록은 로컬 시각, 플러그인 기록은 UTC였다).
+4. 오프라인 설치 스크립트: PowerShell 5.1에서 네이티브 명령의 stderr가 예외로 바뀌는 문제(`Invoke-Native`로 종료 코드만 판정), ensurepip가 없는 Python(번들 pip wheel로 부트스트랩), 모델 카탈로그 복사 순서(env 스크립트에 `OPENCODE_MODELS_PATH`가 빠짐).
+
+**미검증(다음 단계).**
+1. 실제 LLM으로 장시간 과제: 모의 모델은 도구 호출 형식만 확인한다. 모델이 규율(그림 검증, 인용 검증)을 끝까지 따르는지는 연결한 모델에 달렸다.
+2. 그림 검토 게이트(`[figure_review_pending]`)와 압축 훅(compaction)의 실기 동작. 공용 Python 쪽은 테스트했다(test_hooks).
+3. scholar 실네트워크 4건(실제 DOI 확인, 가짜 DOI 거부, Crossref 검색, OpenAlex 키 없음 처리).
+4. 대상 PC에서 `install_offline.ps1` 전 과정: 이 샌드박스는 중첩 프로세스가 만든 임시 파일에 접근하지 못해 pip 설치 단계를 완주하지 못했다. 체크섬 검증·Python 확인·pip 부트스트랩 시작까지와 각 단계(의존성 해석, `install.py --offline`, V1 의존성 배치, 바이너리 실행)를 따로 확인했다.
 5. Codex, Claude Code, Claude.ai 실기 실행.
-6. 샌드박스 전용 설정: 커널 테스트에 `JUPYTER_ALLOW_INSECURE_WRITES=1`을 사용했다(사용자 승인, `--inproc` 모드에서만). 배포 기본값은 꺼져 있다.
+6. 샌드박스 전용 설정: 커널 테스트에 `JUPYTER_ALLOW_INSECURE_WRITES=1`(사용자 승인, 테스트에서만), OpenCode 2 서버 테스트에 D: 드라이브 PATH 항목 제외(샌드박스가 `D:\Git\cmd\git.exe` 접근을 막아 서버가 500을 반환). 배포 기본값에는 들어가지 않는다.
 
 ## 8. 설치와 사용 (Windows PowerShell)
 ```powershell
@@ -187,22 +219,25 @@ git clone https://github.com/eljja/open-science; cd open-science
 conda create -n sciharness python=3.11 -y; conda activate sciharness
 pip install -e python                       # mcp, jupyter_client, ipykernel, matplotlib, pandas, httpx, markdown
 python tools/install.py --doctor
-python tools/install.py --target opencode --project D:
-esearch\myproj
+python tools/install.py --target opencode --project D:\research\myproj
 npm install -g @opencode/cli                 # OpenCode 2
-cd D:
-esearch\myproj; . .\.opencode\sciharness.env.ps1; opencode
+cd D:\research\myproj; . .\.opencode\sciharness.env.ps1; opencode
 ```
+오프라인 PC: 6.2절의 번들을 만든 뒤 `powershell -ExecutionPolicy Bypass -File .\install_offline.ps1 -Project D:\research\myproj [-Target opencode-v1]`.
+
+설치 확인: `python tests/test_opencode_real.py --opencode <opencode.exe> --project D:\research\myproj`, `python tests/test_e2e_mock_llm.py --opencode <opencode.exe>`(LLM 키 불필요).
+
 첫 확인 순서: `/mcps`에서 서버 3종 connected → "y=sin(x) 그림을 그려 저장하고 검증해" → `outputs/figures/`, `.science/lineage.jsonl`, `artifacts/manifest.jsonl` 생성 여부와 `[figure_review_pending]` 경고가 view_image 후 사라지는지 확인.
 
 ## 9. 한계와 로드맵
 
 | 단계 | 내용 | 완료 기준 |
 |---|---|---|
-| 1 (현재) | 팩 v0.1(+OpenCode 1.x 대상), 오프라인 테스트 | 67/67 ✓ |
-| 2 | OpenCode 2 실기: 에이전트·MCP·플러그인 훅 필드 확인, 패리티 과제 10개(그림·문헌·논문·위임) 수행 | 과제별 체크리스트 통과 |
-| 3 | 외부 스킬 팩(K-Dense, DeepMind science-skills) 선택적 가져오기(출처·라이선스 명시), Codex/Claude Code 실기 | 동일 과제 런타임 간 비교 |
-| 4 | 산출물·계보 로컬 뷰어(HTML), 원격 scholar/memory 배포(Claude.ai 커넥터) | 선택 |
+| 1 | 팩 v0.1(+OpenCode 1.x 대상), 오프라인 테스트 | 67/67 ✓ |
+| 2 (현재) | v0.2: 오프라인 번들, OpenCode 2·1.x 실기 로딩·모의 LLM 종단 간 검증 | 82/82 + 실기 10/10, 9/9, 9/9 ✓ |
+| 3 | 실제 LLM 패리티 과제 10개(그림·문헌·논문·위임), 그림 검토 게이트·압축 훅 실기 | 과제별 체크리스트 통과 |
+| 4 | 외부 스킬 팩(K-Dense, DeepMind science-skills) 선택적 가져오기(출처·라이선스 명시), Codex/Claude Code 실기 | 동일 과제 런타임 간 비교 |
+| 5 | 산출물·계보 로컬 뷰어(HTML), 원격 scholar/memory 배포(Claude.ai 커넥터) | 선택 |
 
 **한계.** 이 하네스는 Claude Science 의 **규율과 도구 표면**을 재현한다. 모델 자체의 능력(장문 추론, 시각 판단 품질)은 OpenCode 에 연결한 모델에 따라 달라진다. 훅 주입은 문맥을 추가할 뿐이고, 모델이 끝까지 따르도록 강제하는 장치는 미검토 그림 경고(OpenCode)와 Stop 차단(Claude Code/Codex)까지다.
 

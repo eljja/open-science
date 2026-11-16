@@ -53,10 +53,10 @@ def recall_block(prompt: str, root: Path, limit: int = 6) -> str:
     except Exception as e:  # 메모리 DB 문제로 대화가 막히면 안 된다
         return f"[Memory] (회상 실패: {e!r})"
 
-def discovery_block(prompt: str, k: int = 4) -> str:
+def discovery_block(prompt: str, k: int = 4, root: Path | None = None) -> str:
     try:
         from . import skills_index as S
-        return S.format_discovery(S.search(prompt, k=k))
+        return S.format_discovery(S.search(prompt, k=k, base=root))
     except Exception:
         return ""
 
@@ -77,7 +77,7 @@ def frame_block(root: Path, max_chars: int = 1500) -> str:
 
 def context_text(prompt: str, root: Path | None = None, include_frame: bool = True) -> str:
     root = root or _root()
-    parts = [recall_block(prompt, root), discovery_block(prompt), pending_block(root)]
+    parts = [recall_block(prompt, root), discovery_block(prompt, root=root), pending_block(root)]
     if include_frame:
         parts.append(frame_block(root))
     return "\n\n".join(p for p in parts if p)
@@ -88,7 +88,7 @@ def session_start_text(root: Path) -> str:
         prof = M.read("profile", 40); proj = M.read(project_entity(root), 40)
         lines = ["## Memory (자동 주입)", "### Profile"] + [f"- [{r['evidence']}] {r['text']}" for r in prof]
         lines += [f"### {project_entity(root)}"] + [f"- [{r['age']}] [{r['evidence']}] {r['text']}  [{r['id']}]" for r in proj[:15]]
-        n = len(S.load())
+        n = len(S.load(base=root))
         lines.append(f"\n(설치된 스킬 {n}개 — search_skills 로 검색. 작업 전 memory_search 로 관련 기록 확인.)")
         pb = pending_block(root)
         return "\n".join(lines) + ("\n\n" + pb if pb else "")

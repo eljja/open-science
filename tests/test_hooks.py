@@ -42,4 +42,11 @@ ss, _ = run(["claude", "SessionStart"], json.dumps({"hook_event_name": "SessionS
 chk("SessionStart: profile/project 메모리 + 스킬 수", "Malgun" in ss and "스킬 10개" in ss, ss[-80:])
 lin = (root / ".science" / "lineage.jsonl").read_text(encoding="utf-8").splitlines()
 chk("PostToolUse: 계보 기록", len(lin) >= 2, len(lin))
+# 회귀(2026-11-17 실기 E2E 에서 발견): 스킬 폴더를 cwd 가 아니라 --root 기준으로 찾아야 한다
+import shutil as _sh
+proj2 = root / "proj_root_test"; _sh.copytree(HERE.parent / "harness" / "skills", proj2 / ".opencode" / "skills")
+env2 = {k: v for k, v in env.items() if k not in ("SCIHARNESS_SKILL_DIRS", "SCIHARNESS_ROOT")}
+r2 = subprocess.run([sys.executable, "-m", "sciharness.hooks", "context", "--json", "--no-frame", "--root", str(proj2), "--prompt", "논문용 그림으로 사인파를 그려서 저장해줘"],
+                    capture_output=True, text=True, encoding="utf-8", env=env2, cwd=str(HERE))
+chk("context: 다른 cwd 에서도 --root 의 .opencode/skills 탐색", "[skill_discovery]" in r2.stdout and "scientific-figures" in r2.stdout, r2.stdout[:60])
 print(f"\n{sum(res)}/{len(res)} passed"); sys.exit(0 if all(res) else 1)

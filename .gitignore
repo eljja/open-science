@@ -5,6 +5,7 @@ tests/_sandbox/
 tests/_install_runs/
 tests/_hook_runs/
 tests/_install_demo/
+tests/_e2e_runs/
 tests/*_results.json
 dist/
 .science/

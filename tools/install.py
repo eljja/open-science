@@ -22,6 +22,8 @@ SERVERS = {"science-kernel": "sciharness.mcp_servers.kernel_server",
 PORTABLE = {"scientific-figures": ["figures.py"], "schematic-diagrams": ["figures.py", "schematic.py"],
             "report-html": ["report.py"], "data-viewer": ["viewer.py"]}
 Q3 = "'" * 3
+OFFLINE = False   # --offline: 인터넷 없는 환경(문헌 MCP 비활성, 업데이트·모델 목록 다운로드 끔)
+OFFLINE_NOTE = ("\n## 오프라인 환경 (설치기 --offline)\n- 인터넷이 없다. scholar(문헌 검색·DOI 검증) MCP 는 비활성이다. 인용은 사용자가 제공한 문헌/BibTeX 만 쓰고, 검증하지 못한 인용은 \"미검증\"으로 표시한다.\n- 패키지 설치(pip/npm)를 시도하지 말고, 설치된 라이브러리 범위에서 해결한다. 없으면 사용자에게 알린다.\n")
 
 def sha(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()[:16]
@@ -92,7 +94,8 @@ def core_prompt() -> str:
     return (HARNESS / "prompts" / "science_system.md").read_text(encoding="utf-8")
 
 def project_settings() -> str:
-    return (HARNESS / "templates" / "AGENTS.project.md").read_text(encoding="utf-8")
+    s = (HARNESS / "templates" / "AGENTS.project.md").read_text(encoding="utf-8")
+    return s + (OFFLINE_NOTE if OFFLINE else "")
 
 def agents():
     for p in sorted((HARNESS / "agents").glob("*.md")):
@@ -113,6 +116,14 @@ def portable_scripts(plan: Plan, rel_skills: str):
 def env_for(project: Path) -> dict:
     return {"SCIHARNESS_ROOT": str(project), "PYTHONIOENCODING": "utf-8",
             "SCIHARNESS_MEMORY_DB": str(Path.home() / ".sciharness" / "memory.db")}
+
+def env_script(python: str) -> str:
+    s = f'$env:SCIHARNESS_PYTHON = "{python}"\n'
+    if OFFLINE:
+        s += ("$env:OPENCODE_DISABLE_AUTOUPDATE = \"1\"     # V1\n$env:OPENCODE_DISABLE_MODELS_FETCH = \"1\"   # V1: models.dev 조회 안 함\n"
+              "$env:OPENCODE_DISABLE_LSP_DOWNLOAD = \"1\"\n"
+              "if (Test-Path \"$PSScriptRoot\\..\\.science\\models.json\") { $env:OPENCODE_MODELS_PATH = \"$PSScriptRoot\\..\\.science\\models.json\" }\n")
+    return s
 
 def scaffold(plan: Plan):
     for d in ["outputs/figures", "outputs/report", "outputs/html", "outputs/data", "outputs/interactive", "notes"]:
@@ -158,8 +169,12 @@ def install_opencode(plan: Plan, python: str):
     servers = {}
     for name, mod in SERVERS.items():
         s = {"type": "local", "command": [python, "-m", mod], "environment": env}
-        if name == "science-kernel":
-            s["codemode"] = False                      # 이미지 결과를 모델에 직접 전달
+        if OFFLINE and name == "scholar":
+            s["disabled"] = True
+        # 하네스 도구는 모두 직접 호출(Code Mode 의 execute/JS 래핑 없이) — 프롬프트 설명·V1 동작과 일치.
+        # (실측 2.3.0: codemode 기본값이면 memory 도구가 execute 안의 tools.memory.* 로만 노출됨)
+        s["codemode"] = False
+        if name == "science-kernel":                   # 이미지 결과를 모델에 직접 전달
             s["timeout"] = {"execution": 1800000}      # 장시간 셀 허용(30분)
         servers[name] = s
     cfg = {"$schema": "https://opencode.ai/config.json", "default_agent": "science",
@@ -174,7 +189,7 @@ def install_opencode(plan: Plan, python: str):
         plan.write("opencode.jsonc", txt)
     if not (plan.project / "AGENTS.md").exists():
         plan.write("AGENTS.md", project_settings())
-    plan.write(".opencode/sciharness.env.ps1", f'$env:SCIHARNESS_PYTHON = "{python}"\n')
+    plan.write(".opencode/sciharness.env.ps1", env_script(python))
     scaffold(plan)
 
 # ---------------- OpenCode 1.x (V1 스키마) ----------------
@@ -215,12 +230,14 @@ def install_opencode_v1(plan: Plan, python: str):
     env = env_for(plan.project)
     mcp = {}
     for name, mod in SERVERS.items():
-        s = {"type": "local", "command": [python, "-m", mod], "environment": env, "enabled": True}
+        s = {"type": "local", "command": [python, "-m", mod], "environment": env, "enabled": not (OFFLINE and name == "scholar")}
         if name == "science-kernel":
             s["timeout"] = 1800000      # V1: 요청·도구 호출 타임아웃(ms), 장시간 셀 허용
         mcp[name] = s
     cfg = {"$schema": "https://opencode.ai/config.json", "default_agent": "science", "mcp": mcp,
            "permission": {"external_directory": "ask"}}
+    if OFFLINE:
+        cfg["autoupdate"] = False
     txt = json.dumps(cfg, ensure_ascii=False, indent=2) + "\n"
     if (plan.project / "opencode.json").exists() and plan.manifest.get("opencode.json") is None:
         plan.write(".opencode/opencode.science.v1.json", txt)
@@ -229,7 +246,7 @@ def install_opencode_v1(plan: Plan, python: str):
         plan.write("opencode.json", txt)
     if not (plan.project / "AGENTS.md").exists():
         plan.write("AGENTS.md", project_settings())
-    plan.write(".opencode/sciharness.env.ps1", f'$env:SCIHARNESS_PYTHON = "{python}"\n')
+    plan.write(".opencode/sciharness.env.ps1", env_script(python))
     scaffold(plan)
 
 # ---------------- Claude Code ----------------
@@ -360,7 +377,10 @@ def main(argv=None):
     ap.add_argument("--dry-run", action="store_true"); ap.add_argument("--force", action="store_true")
     ap.add_argument("--pip", action="store_true", help="--python 에 sciharness 를 editable 설치")
     ap.add_argument("--doctor", action="store_true"); ap.add_argument("-v", "--verbose", action="store_true")
+    ap.add_argument("--offline", action="store_true", help="인터넷 없는 환경: scholar 비활성, 업데이트·모델 목록 다운로드 끔")
     a = ap.parse_args(argv)
+    global OFFLINE
+    OFFLINE = a.offline
     python = str(Path(a.python))
     if a.pip and not a.dry_run:
         subprocess.check_call([python, "-m", "pip", "install", "-e", str(KIT / "python")])
