@@ -1,0 +1,4 @@
+﻿테스트,통과,전체,비고
+"smoke_test (MCP, --inproc --offline)",14,14,scholar 네트워크 4건 미실행
+"test_install (5개 대상, OpenCode 1.x 포함)",45,45,
+test_hooks (공용 훅),8,8,

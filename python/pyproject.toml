@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sciharness"
+version = "0.1.0"
+description = "Claude Science 유사 동작을 위한 공용 하네스: 그림 스타일, 회로도, 보고서, MCP 서버(커널/문헌/메모리)"
+requires-python = ">=3.10"
+dependencies = ["mcp>=1.2", "jupyter_client>=8", "ipykernel>=6", "matplotlib>=3.7",
+                "numpy", "pandas", "httpx>=0.25", "markdown>=3.4", "pyyaml"]
+
+[project.scripts]
+sciharness-kernel = "sciharness.mcp_servers.kernel_server:main"
+sciharness-scholar = "sciharness.mcp_servers.scholar_server:main"
+sciharness-memory = "sciharness.mcp_servers.memory_server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sciharness*"]
